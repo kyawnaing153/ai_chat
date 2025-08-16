@@ -2,12 +2,10 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 
-export async function registerRoutes(app: Express): Promise<Server> {
-  // put application routes here
-  // prefix all routes with /api
+// Import the OpenAI library to interface with the DeepSeek API
+import { OpenAI } from "openai";
 
-  // use storage to perform CRUD operations on the storage interface
-  // e.g. storage.insertUser(user) or storage.getUserByUsername(username)
+export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
 

@@ -1,3 +1,4 @@
+// src/hooks/use-speech-recognition.tsx
 import { useState, useEffect, useRef, useCallback } from "react";
 
 interface SpeechRecognitionHook {
@@ -8,6 +9,7 @@ interface SpeechRecognitionHook {
   stopRecording: () => void;
   isSupported: boolean;
   error: string | null;
+  setLanguage: (lang: string) => void;
 }
 
 // Extend the Window interface to include webkitSpeechRecognition
@@ -24,22 +26,24 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
   const [interimTranscript, setInterimTranscript] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSupported, setIsSupported] = useState(false);
-  
+  // Set initial language to English
+  const [language, setLanguage] = useState("en-US");
+
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
-    // Check if speech recognition is supported
-    const SpeechRecognition = 
+    const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
-    
+
     if (SpeechRecognition) {
       setIsSupported(true);
       recognitionRef.current = new SpeechRecognition();
-      
+
       const recognition = recognitionRef.current;
       recognition.continuous = true;
       recognition.interimResults = true;
-      recognition.lang = "en-US";
+      // Use the `language` state variable to set the language
+      recognition.lang = language;
 
       recognition.onstart = () => {
         setIsRecording(true);
@@ -85,7 +89,7 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
         recognitionRef.current.abort();
       }
     };
-  }, []);
+  }, [language]); // Add `language` as a dependency
 
   const startRecording = useCallback(() => {
     if (recognitionRef.current && !isRecording) {
@@ -112,5 +116,6 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
     stopRecording,
     isSupported,
     error,
+    setLanguage, // Return the function to change language
   };
 }

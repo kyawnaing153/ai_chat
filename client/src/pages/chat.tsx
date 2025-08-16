@@ -1,10 +1,12 @@
+// chat.tsx
+"use client";
 import { useState } from "react";
 import { Sidebar } from "@/components/sidebar";
 import { ChatArea } from "@/components/chat-area";
 import { VoiceInput } from "@/components/voice-input";
 import { TranscriptionBox } from "@/components/transcription-box";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
-import { Menu } from "lucide-react";
+import { Menu, Volume2, VolumeX, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Message {
@@ -12,7 +14,11 @@ interface Message {
   text: string;
   isUser: boolean;
   timestamp: Date;
+  imgUrl?: string; // Add optional image URL
+  fileNames?: string[];
 }
+
+const LOADING_MESSAGE_ID = "loading-ai-response";
 
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([
@@ -23,9 +29,13 @@ export default function Chat() {
       timestamp: new Date(),
     },
   ]);
-  
+
   const [inputValue, setInputValue] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [language, setLanguage] = useState("en-US"); //my-MM
+  const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]); // Multiple files
 
   const {
     isRecording,
@@ -36,36 +46,115 @@ export default function Chat() {
     isSupported,
   } = useSpeechRecognition();
 
-  const handleSendMessage = (text: string) => {
-    if (!text.trim()) return;
+  //speak
+  const speakTextIncremental = (text: string, lang: string = "en-US") => {
+    if (!window.speechSynthesis || !text.trim()) return;
 
-    const newMessage: Message = {
+    window.speechSynthesis.cancel();
+
+    const voices = window.speechSynthesis.getVoices();
+    const googleVoice = voices.find(v =>
+      v.name.toLowerCase().includes("google uk english female")
+    );
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = lang;
+    if (googleVoice) utterance.voice = googleVoice;
+
+    utterance.rate = 1 * (0.96 + Math.random() * 0.18);
+    utterance.pitch = 1 * (0.97 + Math.random() * 0.16);
+    utterance.volume = 2;
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Ensure voices are loaded
+  if (typeof window !== "undefined") {
+    window.speechSynthesis.onvoiceschanged = () => { };
+  }
+
+  const handleSendMessage = async (text: string, files: File[]) => {
+    if ((!text.trim() && files.length === 0) || isLoading) return;
+
+    // Show all user input (text + file names) in chat
+    const userMessageText = text.trim();
+    const userMessage: Message = {
       id: Date.now().toString(),
-      text: text.trim(),
+      text: userMessageText,
       isUser: true,
       timestamp: new Date(),
+      fileNames: files.map(f => f.name),
     };
-
-    setMessages((prev) => [...prev, newMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInputValue("");
+    setSelectedFiles([]);
+    setIsLoading(true);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse: Message = {
+    try {
+      const formData = new FormData();
+      formData.append("prompt", text.trim());
+      files.forEach((file, idx) => {
+        formData.append(`file${idx+1}`, file);
+      });
+      const response = await fetch("https://projectx-ak3q.onrender.com/chat", {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+
+      // Demo response
+      // const data = {
+      //   response: "This is a sample AI test message. It will be read aloud while typing.",
+      //   contain_img: "",
+      // };
+      const fullText = data.response;
+      // Conditionally start speech if voice is enabled
+      if (isVoiceEnabled) {
+        speakTextIncremental(fullText, language || "en-US");
+      }
+      const aiId = (Date.now() + 1).toString();
+      const aiMessage: Message = {
+        id: aiId,
+        text: "",
+        isUser: false,
+        timestamp: new Date(),
+        imgUrl: data.contain_img || undefined, // Add image URL if present
+      };
+      setMessages((prev) => [...prev, aiMessage]);
+
+      let i = 0;
+      // Typing animation
+      const typingInterval = setInterval(() => {
+        i++;
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === aiId ? { ...msg, text: fullText.slice(0, i) } : msg
+          )
+        );
+        if (i >= fullText.length) clearInterval(typingInterval);
+      }, 40); // 40ms per character
+    } catch (error) {
+      console.error("Error sending message:", error);
+      const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: "I received your message. This is a demo response. In a real implementation, this would connect to an AI service.",
+        text: "I couldn't connect to the AI. Please check your network connection and try again.",
         isUser: false,
         timestamp: new Date(),
       };
-      setMessages((prev) => [...prev, aiResponse]);
-    }, 1000);
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleVoiceToggle = () => {
+    if (isLoading) return;
+
     if (isRecording) {
       stopRecording();
       if (transcript) {
-        handleSendMessage(transcript);
+        handleSendMessage(transcript, []);
       }
     } else {
       startRecording();
@@ -75,13 +164,32 @@ export default function Chat() {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage(inputValue);
+      handleSendMessage(inputValue, selectedFiles);
     }
   };
 
+  const handleFileChange = (file: File | null) => {
+  // Deprecated: now using multiple files
+  };
+
+  const handleRemoveFile = () => {
+  setSelectedFiles([]);
+  };
+
+  const chatMessages = isLoading
+    ? [
+      ...messages,
+      {
+        id: LOADING_MESSAGE_ID,
+        isUser: false,
+        text: "...", // loading animation indicator
+        timestamp: new Date(),
+      },
+    ]
+    : messages;
+
   return (
     <div className="flex h-screen bg-dark-primary text-text-primary overflow-hidden">
-      {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
@@ -89,42 +197,47 @@ export default function Chat() {
         />
       )}
 
-      {/* Sidebar */}
       <div
-        className={`fixed lg:relative lg:translate-x-0 transition-transform duration-300 z-50 ${
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`fixed lg:relative lg:translate-x-0 transition-transform duration-300 z-50 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
         <Sidebar onClose={() => setIsSidebarOpen(false)} />
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile Header */}
-        <div className="lg:hidden bg-dark-secondary border-b border-dark-tertiary p-4 flex items-center justify-between">
+        <div className="bg-dark-secondary border-b border-dark-tertiary p-4 flex items-center justify-between"> {/* lg:hidden  */}
           <div className="flex items-center space-x-2">
             <div className="w-6 h-6 bg-agent-orange rounded flex items-center justify-center">
               <div className="w-3 h-3 bg-white rounded-sm" />
             </div>
             <span className="font-semibold">AGENT UI</span>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsSidebarOpen(true)}
-            className="p-2 hover:bg-dark-tertiary"
-            data-testid="button-mobile-menu"
-          >
-            <Menu className="h-5 w-5 text-text-secondary" />
-          </Button>
+          <div className="flex items-center space-x-2">
+            <Button
+              onClick={() => setIsVoiceEnabled(!isVoiceEnabled)} // toggle state on click
+              className="p-4 bg-dark-tertiary"
+              title={isVoiceEnabled ? "Disable Voice" : "Enable Voice"}
+            >
+              {isVoiceEnabled ? (
+                <Volume2 className="h-5 w-5 text-text-secondary" />
+              ) : (
+                <VolumeX className="h-5 w-5 text-text-secondary" />
+              )}
+            </Button>
+            <Button
+              onClick={() => setIsSidebarOpen(true)}
+              className="lg:hidden p-2 bg-dark-tertiary"
+              data-testid="button-mobile-menu"
+            >
+              <Menu className="h-5 w-5 text-text-secondary" />
+            </Button>
+          </div>
         </div>
 
-        {/* Chat Area */}
         <div className="flex-1 overflow-y-auto">
-          <ChatArea messages={messages} />
+          <ChatArea messages={chatMessages} isLoading={isLoading} />
         </div>
 
-        {/* Transcription Box */}
         {isRecording && (
           <TranscriptionBox
             transcript={transcript}
@@ -133,7 +246,6 @@ export default function Chat() {
           />
         )}
 
-        {/* Voice Input */}
         <VoiceInput
           inputValue={inputValue}
           setInputValue={setInputValue}
@@ -142,7 +254,14 @@ export default function Chat() {
           isRecording={isRecording}
           onVoiceToggle={handleVoiceToggle}
           isVoiceSupported={isSupported}
+          isInputDisabled={isLoading}
+          selectedFiles={selectedFiles}
+          setSelectedFiles={setSelectedFiles}
         />
+
+        {/* <Button onClick={() => speakTextIncremental(test_text, "en-US")}>
+          Test Voice
+        </Button> */}
       </div>
     </div>
   );
