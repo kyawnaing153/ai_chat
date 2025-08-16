@@ -1,6 +1,6 @@
 // chat.tsx
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Sidebar } from "@/components/sidebar";
 import { ChatArea } from "@/components/chat-area";
 import { VoiceInput } from "@/components/voice-input";
@@ -44,10 +44,92 @@ export default function Chat() {
     startRecording,
     stopRecording,
     isSupported,
+    resetTranscript,
   } = useSpeechRecognition();
 
   //speak
   const speakTextIncremental = (text: string, lang: string = "en-US") => {
+  const handleSendMessage = useCallback(async (text: string, files: File[]) => {
+    if ((!text.trim() && files.length === 0) || isLoading) return;
+
+    // Show all user input (text + file names) in chat
+    const userMessageText = text.trim();
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      text: userMessageText,
+      isUser: true,
+      timestamp: new Date(),
+      fileNames: files.map(f => f.name),
+    };
+    setMessages((prev) => [...prev, userMessage]);
+    setInputValue("");
+    setSelectedFiles([]);
+    setIsLoading(true);
+
+    try {
+      // const formData = new FormData();
+      // formData.append("prompt", text.trim());
+      // files.forEach((file, idx) => {
+      //   formData.append(`file${idx+1}`, file);
+      // });
+      // const response = await fetch("https://projectx-ak3q.onrender.com/chat", {
+      //   method: "POST",
+      //   body: formData,
+      // });
+      // if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      // const data = await response.json();
+
+      // Demo response
+      const data = {
+        response: "This is a sample AI test message. It will be read aloud while typing.",
+        contain_img: "",
+      };
+      const fullText = data.response;
+      // Conditionally start speech if voice is enabled
+      if (isVoiceEnabled) {
+        speakTextIncremental(fullText, language || "en-US");
+      }
+      const aiId = (Date.now() + 1).toString();
+      const aiMessage: Message = {
+        id: aiId,
+        text: "",
+        isUser: false,
+        timestamp: new Date(),
+        imgUrl: data.contain_img || undefined, // Add image URL if present
+      };
+      setMessages((prev) => [...prev, aiMessage]);
+
+      let i = 0;
+      // Typing animation
+      const typingInterval = setInterval(() => {
+        i++;
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === aiId ? { ...msg, text: fullText.slice(0, i) } : msg
+          )
+        );
+        if (i >= fullText.length) clearInterval(typingInterval);
+      }, 40); // 40ms per character
+    } catch (error) {
+      console.error("Error sending message:", error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: "I couldn't connect to the AI. Please check your network connection and try again.",
+        isUser: false,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isLoading, isVoiceEnabled, language, setMessages, setInputValue, setSelectedFiles, setIsLoading, speakTextIncremental]);
+
+  useEffect(() => {
+    if (!isRecording && transcript && !isLoading) {
+      handleSendMessage(transcript, []);
+      resetTranscript();
+    }
+  }, [isRecording, transcript, isLoading, handleSendMessage, resetTranscript]);
     if (!window.speechSynthesis || !text.trim()) return;
 
     window.speechSynthesis.cancel();
@@ -73,7 +155,7 @@ export default function Chat() {
     window.speechSynthesis.onvoiceschanged = () => { };
   }
 
-  const handleSendMessage = async (text: string, files: File[]) => {
+  const handleSendMessage = useCallback(async (text: string, files: File[]) => {
     if ((!text.trim() && files.length === 0) || isLoading) return;
 
     // Show all user input (text + file names) in chat
@@ -146,7 +228,7 @@ export default function Chat() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isLoading, isVoiceEnabled, language, setMessages, setInputValue, setSelectedFiles, setIsLoading, speakTextIncremental]);
 
   const handleVoiceToggle = () => {
     if (isLoading) return;
