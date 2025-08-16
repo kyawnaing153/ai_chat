@@ -125,10 +125,21 @@ export default function Chat() {
   }, [isLoading, isVoiceEnabled, language, setMessages, setInputValue, setSelectedFiles, setIsLoading, speakTextIncremental]);
 
   useEffect(() => {
+    let sendTimeout: NodeJS.Timeout | null = null;
     if (!isRecording && transcript && !isLoading) {
-      handleSendMessage(transcript, []);
-      resetTranscript();
+      // Wait 1.5 seconds before sending
+      sendTimeout = setTimeout(() => {
+        // Only send if still not recording and transcript is present
+        if (!isRecording && transcript && !isLoading) {
+          handleSendMessage(transcript, []);
+          resetTranscript();
+        }
+      }, 1500); // 1.5 seconds
     }
+    // If user starts talking again, clear the timeout
+    return () => {
+      if (sendTimeout) clearTimeout(sendTimeout);
+    };
   }, [isRecording, transcript, isLoading, handleSendMessage, resetTranscript]);
     if (!window.speechSynthesis || !text.trim()) return;
 
