@@ -10,6 +10,7 @@ interface SpeechRecognitionHook {
   isSupported: boolean;
   error: string | null;
   setLanguage: (lang: string) => void;
+  resetTranscript: () => void;
 }
 
 // Extend the Window interface to include webkitSpeechRecognition
@@ -28,6 +29,12 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
   const [isSupported, setIsSupported] = useState(false);
   // Set initial language to English
   const [language, setLanguage] = useState("en-US");
+
+  // Add resetTranscript function
+  const resetTranscript = useCallback(() => {
+    setTranscript("");
+    setInterimTranscript("");
+  }, []);
 
   const recognitionRef = useRef<any>(null);
 
@@ -117,5 +124,6 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
     isSupported,
     error,
     setLanguage, // Return the function to change language
+    resetTranscript,
   };
 }
