@@ -2,8 +2,8 @@ import React, { useState, useRef } from 'react';
 
 const TextToSpeech = () => {
   // Your Google Cloud API Key
-  const API_KEY = ''; 
-  const API_URL = ``; 
+  const API_KEY = 'AIzaSyC4Wh88O0uchdhUcQQBLVULQX9YEiKF6Bo'; 
+  const API_URL = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${API_KEY}`; 
 
   // State management
   const [text, setText] = useState('Hello world. မင်္ဂလာပါ။');
