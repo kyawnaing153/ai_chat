@@ -47,101 +47,10 @@ export default function Chat() {
     resetTranscript,
   } = useSpeechRecognition();
 
-  //speak
-  const speakTextIncremental = (text: string, lang: string = "en-US") => {
-  const handleSendMessage = useCallback(async (text: string, files: File[]) => {
-    if ((!text.trim() && files.length === 0) || isLoading) return;
-
-    // Show all user input (text + file names) in chat
-    const userMessageText = text.trim();
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      text: userMessageText,
-      isUser: true,
-      timestamp: new Date(),
-      fileNames: files.map(f => f.name),
-    };
-    setMessages((prev) => [...prev, userMessage]);
-    setInputValue("");
-    setSelectedFiles([]);
-    setIsLoading(true);
-
-    try {
-      const formData = new FormData();
-      formData.append("prompt", text.trim());
-      files.forEach((file, idx) => {
-        formData.append(`file${idx+1}`, file);
-      });
-      const response = await fetch("https://projectx-ak3q.onrender.com/chat", {
-        method: "POST",
-        body: formData,
-      });
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
-
-      // Demo response
-      // const data = {
-      //   response: "This is a sample AI test message. It will be read aloud while typing.",
-      //   contain_img: "",
-      // };
-      const fullText = data.response;
-      // Conditionally start speech if voice is enabled
-      if (isVoiceEnabled) {
-        speakTextIncremental(fullText, language || "en-US");
-      }
-      const aiId = (Date.now() + 1).toString();
-      const aiMessage: Message = {
-        id: aiId,
-        text: "",
-        isUser: false,
-        timestamp: new Date(),
-        imgUrl: data.contain_img || undefined, // Add image URL if present
-      };
-      setMessages((prev) => [...prev, aiMessage]);
-
-      let i = 0;
-      // Typing animation
-      const typingInterval = setInterval(() => {
-        i++;
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === aiId ? { ...msg, text: fullText.slice(0, i) } : msg
-          )
-        );
-        if (i >= fullText.length) clearInterval(typingInterval);
-      }, 40); // 40ms per character
-    } catch (error) {
-      console.error("Error sending message:", error);
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: "I couldn't connect to the AI. Please check your network connection and try again.",
-        isUser: false,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isLoading, isVoiceEnabled, language, setMessages, setInputValue, setSelectedFiles, setIsLoading, speakTextIncremental]);
-
-  useEffect(() => {
-    let sendTimeout: NodeJS.Timeout | null = null;
-    if (!isRecording && transcript && !isLoading) {
-      // Wait 1.5 seconds before sending
-      sendTimeout = setTimeout(() => {
-        // Only send if still not recording and transcript is present
-        if (!isRecording && transcript && !isLoading) {
-          handleSendMessage(transcript, []);
-          resetTranscript();
-        }
-      }, 1500); // 1.5 seconds
-    }
-    // If user starts talking again, clear the timeout
-    return () => {
-      if (sendTimeout) clearTimeout(sendTimeout);
-    };
-  }, [isRecording, transcript, isLoading, handleSendMessage, resetTranscript]);
-    if (!window.speechSynthesis || !text.trim()) return;
+  // The speakTextIncremental function is missing in this block.
+  // It needs to be defined as a separate useCallback hook within the Chat component.
+  const speakTextIncremental = useCallback((text: string, lang: string = "en-US") => {
+    if (typeof window === "undefined" || !window.speechSynthesis || !text.trim()) return;
 
     window.speechSynthesis.cancel();
 
@@ -159,17 +68,11 @@ export default function Chat() {
     utterance.volume = 2;
 
     window.speechSynthesis.speak(utterance);
-  };
-
-  // Ensure voices are loaded
-  if (typeof window !== "undefined") {
-    window.speechSynthesis.onvoiceschanged = () => { };
-  }
+  }, []);
 
   const handleSendMessage = useCallback(async (text: string, files: File[]) => {
     if ((!text.trim() && files.length === 0) || isLoading) return;
 
-    // Show all user input (text + file names) in chat
     const userMessageText = text.trim();
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -184,25 +87,23 @@ export default function Chat() {
     setIsLoading(true);
 
     try {
-      const formData = new FormData();
-      formData.append("prompt", text.trim());
-      files.forEach((file, idx) => {
-        formData.append(`file${idx+1}`, file);
-      });
-      const response = await fetch("https://projectx-ak3q.onrender.com/chat", {
-        method: "POST",
-        body: formData,
-      });
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
-
+      // const formData = new FormData();
+      // formData.append("prompt", text.trim());
+      // files.forEach((file, idx) => {
+      //   formData.append(`file${idx + 1}`, file);
+      // });
+      // const response = await fetch("https://projectx-ak3q.onrender.com/chat", {
+      //   method: "POST",
+      //   body: formData,
+      // });
+      // if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      // const data = await response.json();
       // Demo response
-      // const data = {
-      //   response: "This is a sample AI test message. It will be read aloud while typing.",
-      //   contain_img: "",
-      // };
+      const data = {
+        response: "This is a sample AI test message. It will be read aloud while typing.",
+        contain_img: "",
+      };
       const fullText = data.response;
-      // Conditionally start speech if voice is enabled
       if (isVoiceEnabled) {
         speakTextIncremental(fullText, language || "en-US");
       }
@@ -212,12 +113,11 @@ export default function Chat() {
         text: "",
         isUser: false,
         timestamp: new Date(),
-        imgUrl: data.contain_img || undefined, // Add image URL if present
+        imgUrl: data.contain_img || undefined,
       };
       setMessages((prev) => [...prev, aiMessage]);
 
       let i = 0;
-      // Typing animation
       const typingInterval = setInterval(() => {
         i++;
         setMessages((prev) =>
@@ -226,7 +126,7 @@ export default function Chat() {
           )
         );
         if (i >= fullText.length) clearInterval(typingInterval);
-      }, 40); // 40ms per character
+      }, 40);
     } catch (error) {
       console.error("Error sending message:", error);
       const errorMessage: Message = {
@@ -241,15 +141,35 @@ export default function Chat() {
     }
   }, [isLoading, isVoiceEnabled, language, setMessages, setInputValue, setSelectedFiles, setIsLoading, speakTextIncremental]);
 
+  // This useEffect is where the auto-send logic for voice input lives.
+  useEffect(() => {
+    let sendTimeout: NodeJS.Timeout | null = null;
+    // Check if recording has stopped, there's a transcript, and we're not already loading.
+    if (!isRecording && transcript && !isLoading) {
+      sendTimeout = setTimeout(() => {
+        // Double-check conditions to prevent race conditions.
+        if (!isRecording && transcript && !isLoading) {
+          handleSendMessage(transcript, []);
+          resetTranscript();
+        }
+      }, 3000); // 1.5 seconds delay
+    }
+
+    // Clean up the timeout if the component unmounts or recording starts again.
+    return () => {
+      if (sendTimeout) clearTimeout(sendTimeout);
+    };
+  }, [isRecording, transcript, isLoading, handleSendMessage, resetTranscript]);
+
   const handleVoiceToggle = () => {
     if (isLoading) return;
 
     if (isRecording) {
+      // Just stop recording. The useEffect hook will handle sending after the delay.
       stopRecording();
-      if (transcript) {
-        handleSendMessage(transcript, []);
-      }
     } else {
+      // Reset the transcript before starting a new recording.
+      resetTranscript();
       startRecording();
     }
   };
@@ -257,16 +177,17 @@ export default function Chat() {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      console.log(inputValue, selectedFiles);
       handleSendMessage(inputValue, selectedFiles);
     }
   };
 
   const handleFileChange = (file: File | null) => {
-  // Deprecated: now using multiple files
+    // Deprecated: now using multiple files
   };
 
   const handleRemoveFile = () => {
-  setSelectedFiles([]);
+    setSelectedFiles([]);
   };
 
   const chatMessages = isLoading
@@ -298,7 +219,7 @@ export default function Chat() {
       </div>
 
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="bg-dark-secondary border-b border-dark-tertiary p-4 flex items-center justify-between"> {/* lg:hidden  */}
+        <div className="bg-dark-secondary border-b border-dark-tertiary p-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <div className="w-6 h-6 bg-agent-orange rounded flex items-center justify-center">
               <div className="w-3 h-3 bg-white rounded-sm" />
@@ -307,7 +228,7 @@ export default function Chat() {
           </div>
           <div className="flex items-center space-x-2">
             <Button
-              onClick={() => setIsVoiceEnabled(!isVoiceEnabled)} // toggle state on click
+              onClick={() => setIsVoiceEnabled(!isVoiceEnabled)}
               className="p-4 bg-dark-tertiary"
               title={isVoiceEnabled ? "Disable Voice" : "Enable Voice"}
             >
@@ -342,7 +263,7 @@ export default function Chat() {
         <VoiceInput
           inputValue={inputValue}
           setInputValue={setInputValue}
-          onSendMessage={handleSendMessage}
+          onSendMessage={() => handleSendMessage(inputValue, selectedFiles)}
           onKeyPress={handleKeyPress}
           isRecording={isRecording}
           onVoiceToggle={handleVoiceToggle}
