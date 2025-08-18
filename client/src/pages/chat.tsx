@@ -56,7 +56,7 @@ export default function Chat() {
 
     const voices = window.speechSynthesis.getVoices();
     const googleVoice = voices.find(v =>
-      v.name.toLowerCase().includes("google uk english female")
+      v.name.toLowerCase().includes("google uk english male")
     );
 
     const utterance = new SpeechSynthesisUtterance(text);
