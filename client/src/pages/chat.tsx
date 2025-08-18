@@ -87,22 +87,22 @@ export default function Chat() {
     setIsLoading(true);
 
     try {
-      // const formData = new FormData();
-      // formData.append("prompt", text.trim());
-      // files.forEach((file, idx) => {
-      //   formData.append(`file${idx + 1}`, file);
-      // });
-      // const response = await fetch("https://projectx-ak3q.onrender.com/chat", {
-      //   method: "POST",
-      //   body: formData,
-      // });
-      // if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      // const data = await response.json();
+      const formData = new FormData();
+      formData.append("prompt", text.trim());
+      files.forEach((file, idx) => {
+        formData.append(`file${idx + 1}`, file);
+      });
+      const response = await fetch("https://projectx-ak3q.onrender.com/chat", {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
       // Demo response
-      const data = {
-        response: "This is a sample AI test message. It will be read aloud while typing.",
-        contain_img: "",
-      };
+      // const data = {
+      //   response: "This is a sample AI test message. It will be read aloud while typing.",
+      //   contain_img: "",
+      // };
       const fullText = data.response;
       if (isVoiceEnabled) {
         speakTextIncremental(fullText, language || "en-US");
@@ -152,7 +152,7 @@ export default function Chat() {
           handleSendMessage(transcript, []);
           resetTranscript();
         }
-      }, 3000); // 1.5 seconds delay
+      }, 1500); // 1.5 seconds delay
     }
 
     // Clean up the timeout if the component unmounts or recording starts again.
