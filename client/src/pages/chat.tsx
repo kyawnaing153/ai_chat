@@ -92,7 +92,7 @@ export default function Chat() {
       files.forEach((file, idx) => {
         formData.append(`file${idx + 1}`, file);
       });
-      const response = await fetch("https://projectx-ak3q.onrender.com/chat", {
+      const response = await fetch("https://2b37baf53e6b.ngrok-free.app/generate", {
         method: "POST",
         body: formData,
       });
